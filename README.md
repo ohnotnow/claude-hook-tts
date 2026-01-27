@@ -80,6 +80,8 @@ The script uses:
 
 Feel free to tweak the prompt or TTS settings in the script to adjust the personality.
 
+The claude-hook-history.txt history file is an example - if you edit it before using the script, haiku will pick up on the style.  It has a tendancy to 'reset to mean' so once in a while you might need to re-edit it.
+
 ## Cost
 
 This is quite cheap to run:
