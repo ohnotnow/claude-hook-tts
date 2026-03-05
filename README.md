@@ -82,6 +82,8 @@ Feel free to tweak the prompt or TTS settings in the script to adjust the person
 
 The claude-hook-history.txt history file is an example - if you edit it before using the script, haiku will pick up on the style.  It has a tendancy to 'reset to mean' so once in a while you might need to re-edit it.
 
+If you want to use specific API keys just for this script to make tracking usage easier, you can create a `.env` file in the project root with, for instance `ANTHROPIC_API_KEY=sk......`.  The .env file is ignored by git - but use at your own judgement.
+
 ## Cost
 
 This is quite cheap to run:
