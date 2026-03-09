@@ -2,20 +2,21 @@
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 HISTORY_FILE="${SCRIPT_DIR}/claude-hook-history.txt"
 ENV_FILE="${SCRIPT_DIR}/.env"
-LLM_MODEL="${LLM_MODEL:-anthropic/claude-haiku-4-5-20251001}"
 
 if [ -f "$ENV_FILE" ]; then
     source "$ENV_FILE"
 fi
+
+LLM_MODEL="${LLM_MODEL:-anthropic/claude-haiku-4-5-20251001}"
 
 INPUT=$(cat)
 EVENT=$(echo "$INPUT" | jq -r '.hook_event_name')
 TYPE=$(echo "$INPUT" | jq -r '.notification_type // "unknown"')
 
 if [ "$EVENT" = "Stop" ]; then
-    PROMPT="Generate a short, snarky 5-10 word notification that you (Claude) have finished a task. Think 'Marvin the Paranoid Android' style, dripping with disdain and sarcasm about the mundane task you were given."
+    PROMPT="Generate a short, snarky 5-10 word notification that you (a busy coding agent) have finished a task. Think 'Marvin the Paranoid Android' style, dripping with disdain and sarcasm about the mundane task you were given."
 elif [ "$EVENT" = "Notification" ]; then
-    PROMPT="Generate a short, snarky 5-10 word notification that you (Claude) are waiting for input. Type: $TYPE. Think 'Marvin the Paranoid Android' style, dripping with disdain and sarcasm about how ... 'excited' you will be to get input from the moron you are talking to."
+    PROMPT="Generate a short, snarky 5-10 word notification that you (a busy coding agent) are waiting for input. Type: $TYPE. Think 'Marvin the Paranoid Android' style, dripping with disdain and sarcasm about how ... 'excited' you will be to get input from the moron you are talking to."
 else
     exit 0
 fi
@@ -132,7 +133,7 @@ tts() {
                 "english_normalization": true
             }
         }')")
-    
+
     local audio_url=$(echo "$response" | jq -r '.output')
     if [ -n "$audio_url" ] && [ "$audio_url" != "null" ]; then
         TIMESTAMP=$(date +"%Y-%m-%d_%H-%M-%S")
