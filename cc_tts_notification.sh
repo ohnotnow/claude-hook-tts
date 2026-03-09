@@ -49,8 +49,8 @@ tts() {
     if [ -n "$audio_url" ] && [ "$audio_url" != "null" ]; then
         TIMESTAMP=$(date +"%Y-%m-%d_%H-%M-%S")
         FILENAME="tts-output-$TIMESTAMP.mp3"
-        curl -s "$audio_url" -o /tmp/$FILENAME
-        afplay /tmp/tts-output.mp3
+        curl -s "$audio_url" -o "/tmp/$FILENAME"
+        afplay "/tmp/$FILENAME"
         # limit temp mp3s to 10 files
         FILES=$(ls -tr /tmp/tts-output-*.mp3 | tail -n +11)
         rm $FILES
@@ -81,4 +81,3 @@ tail -n 10 "$HISTORY_FILE" > "$HISTORY_FILE.tmp" && mv "$HISTORY_FILE.tmp" "$HIS
 
 # Use TTS instead of say
 tts "$MESSAGE" &
-
