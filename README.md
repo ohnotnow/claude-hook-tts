@@ -18,7 +18,10 @@ It also keeps track of recent messages to avoid repetition - even a depressed ro
 
 - macOS (uses `afplay` for audio playback)
 - [jq](https://jqlang.github.io/jq/) for JSON parsing
-- An [Anthropic API key](https://console.anthropic.com/)
+- One LLM API key for your chosen provider:
+  - [Anthropic API key](https://console.anthropic.com/)
+  - [OpenAI API key](https://platform.openai.com/)
+  - [OpenRouter API key](https://openrouter.ai/)
 - A [Replicate API token](https://replicate.com/account/api-tokens)
 - [Claude Code](https://docs.anthropic.com/en/docs/claude-code) installed
 
@@ -38,8 +41,11 @@ It also keeps track of recent messages to avoid repetition - even a depressed ro
 3. Set your API keys as environment variables:
    ```bash
    export ANTHROPIC_API_KEY="your-anthropic-api-key"
+   export OPENAI_API_KEY="your-openai-api-key"
+   export OPENROUTER_API_KEY="your-openrouter-api-key"
    export REPLICATE_API_TOKEN="your-replicate-api-token"
    ```
+   You only need the LLM key for the provider you choose, plus `REPLICATE_API_TOKEN`.
    (You'll likely want to add these to your shell profile)
 
 4. Add the hook to your Claude Code settings. Edit `~/.claude/settings.json` and add:
@@ -74,15 +80,39 @@ It also keeps track of recent messages to avoid repetition - even a depressed ro
 
 ## Configuration
 
-The script uses:
-- **Claude claude-haiku-4-5-20251001** for generating messages (fast and cheap)
+The script uses a single configurable `LLM_MODEL` setting near the top of `cc_tts_notification.sh`:
+
+```bash
+LLM_MODEL="${LLM_MODEL:-anthropic/claude-haiku-4-5-20251001}"
+```
+
+This follows a LiteLLM-style `provider/model` pattern. Examples:
+
+- `anthropic/claude-haiku-4-5-20251001`
+- `openai/gpt-5`
+- `openrouter/google/gemini-2.5-pro`
+
+The script routes requests automatically based on the provider prefix:
+- `anthropic/...` uses `ANTHROPIC_API_KEY`
+- `openai/...` uses `OPENAI_API_KEY`
+- `openrouter/...` uses `OPENROUTER_API_KEY`
+
+The script also uses:
 - **minimax/speech-02-turbo** on Replicate for TTS with a "sad" emotion and slight Danish accent (don't ask)
 
 Feel free to tweak the prompt or TTS settings in the script to adjust the personality.
 
 The claude-hook-history.txt history file is an example - if you edit it before using the script, haiku will pick up on the style.  It has a tendancy to 'reset to mean' so once in a while you might need to re-edit it.
 
-If you want to use specific API keys just for this script to make tracking usage easier, you can create a `.env` file in the project root with, for instance `ANTHROPIC_API_KEY=sk......`.  The .env file is ignored by git - but use at your own judgement.
+If you want to use specific API keys just for this script to make tracking usage easier, you can create a `.env` file in the project root with values like:
+
+```bash
+LLM_MODEL=openrouter/google/gemini-2.5-pro
+OPENROUTER_API_KEY=sk-or-...
+REPLICATE_API_TOKEN=r8_...
+```
+
+The `.env` file is ignored by git, but use it at your own judgement.
 
 ## Cost
 

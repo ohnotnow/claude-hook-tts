@@ -2,6 +2,7 @@
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 HISTORY_FILE="${SCRIPT_DIR}/claude-hook-history.txt"
 ENV_FILE="${SCRIPT_DIR}/.env"
+LLM_MODEL="${LLM_MODEL:-anthropic/claude-haiku-4-5-20251001}"
 
 if [ -f "$ENV_FILE" ]; then
     source "$ENV_FILE"
@@ -29,6 +30,93 @@ FULL_PROMPT="$PROMPT $EXTRA Do not use any of these recent phrases:
 $RECENT
 Just return the message, nothing else."
 
+require_env() {
+    local var_name="$1"
+    if [ -z "${!var_name}" ]; then
+        echo "Missing required environment variable: $var_name" >&2
+        exit 1
+    fi
+}
+
+extract_chat_completion_text() {
+    local response="$1"
+    echo "$response" | jq -r '
+        .choices[0].message.content |
+        if type == "string" then
+            .
+        else
+            map(select(.type == "text") | .text) | join("")
+        end
+    '
+}
+
+generate_message_anthropic() {
+    local prompt="$1"
+    local model="$2"
+
+    require_env "ANTHROPIC_API_KEY"
+
+    local json_payload
+    json_payload=$(jq -n \
+        --arg content "$prompt" \
+        --arg model "$model" \
+        '{
+            "model": $model,
+            "max_tokens": 50,
+            "messages": [{"role": "user", "content": $content}]
+        }')
+
+    curl -s https://api.anthropic.com/v1/messages \
+        -H "x-api-key: $ANTHROPIC_API_KEY" \
+        -H "anthropic-version: 2023-06-01" \
+        -H "content-type: application/json" \
+        -d "$json_payload"
+}
+
+generate_message_openai() {
+    local prompt="$1"
+    local model="$2"
+
+    require_env "OPENAI_API_KEY"
+
+    local json_payload
+    json_payload=$(jq -n \
+        --arg content "$prompt" \
+        --arg model "$model" \
+        '{
+            "model": $model,
+            "messages": [{"role": "user", "content": $content}],
+            "max_completion_tokens": 50
+        }')
+
+    curl -s https://api.openai.com/v1/chat/completions \
+        -H "Authorization: Bearer $OPENAI_API_KEY" \
+        -H "Content-Type: application/json" \
+        -d "$json_payload"
+}
+
+generate_message_openrouter() {
+    local prompt="$1"
+    local model="$2"
+
+    require_env "OPENROUTER_API_KEY"
+
+    local json_payload
+    json_payload=$(jq -n \
+        --arg content "$prompt" \
+        --arg model "$model" \
+        '{
+            "model": $model,
+            "messages": [{"role": "user", "content": $content}],
+            "max_tokens": 50
+        }')
+
+    curl -s https://openrouter.ai/api/v1/chat/completions \
+        -H "Authorization: Bearer $OPENROUTER_API_KEY" \
+        -H "Content-Type: application/json" \
+        -d "$json_payload"
+}
+
 tts() {
     local text="$1"
     local response=$(curl --silent --show-error https://api.replicate.com/v1/models/minimax/speech-02-turbo/predictions \
@@ -52,28 +140,36 @@ tts() {
         curl -s "$audio_url" -o "/tmp/$FILENAME"
         afplay "/tmp/$FILENAME"
         # limit temp mp3s to 10 files
-        FILES=$(ls -tr /tmp/tts-output-*.mp3 | tail -n +11)
-        rm $FILES
+        mapfile -t OLD_FILES < <(ls -tr /tmp/tts-output-*.mp3 2>/dev/null | tail -n +11)
+        if [ "${#OLD_FILES[@]}" -gt 0 ]; then
+            rm "${OLD_FILES[@]}"
+        fi
     fi
 }
 
 
-# Get the snarky message from Claude
-JSON_PAYLOAD=$(jq -n \
-    --arg content "$FULL_PROMPT" \
-    '{
-        "model": "claude-haiku-4-5-20251001",
-        "max_tokens": 50,
-        "messages": [{"role": "user", "content": $content}]
-    }')
+LLM_PROVIDER="${LLM_MODEL%%/*}"
+LLM_NAME="${LLM_MODEL#*/}"
 
-RESPONSE=$(curl -s https://api.anthropic.com/v1/messages \
-    -H "x-api-key: $ANTHROPIC_API_KEY" \
-    -H "anthropic-version: 2023-06-01" \
-    -H "content-type: application/json" \
-    -d "$JSON_PAYLOAD")
+case "$LLM_PROVIDER" in
+    anthropic)
+        RESPONSE=$(generate_message_anthropic "$FULL_PROMPT" "$LLM_NAME")
+        MESSAGE=$(echo "$RESPONSE" | jq -r '.content[0].text')
+        ;;
+    openai)
+        RESPONSE=$(generate_message_openai "$FULL_PROMPT" "$LLM_NAME")
+        MESSAGE=$(extract_chat_completion_text "$RESPONSE")
+        ;;
+    openrouter)
+        RESPONSE=$(generate_message_openrouter "$FULL_PROMPT" "$LLM_NAME")
+        MESSAGE=$(extract_chat_completion_text "$RESPONSE")
+        ;;
+    *)
+        echo "Unsupported LLM provider in LLM_MODEL: $LLM_MODEL" >&2
+        exit 1
+        ;;
+esac
 
-MESSAGE=$(echo "$RESPONSE" | jq -r '.content[0].text')
 echo "$RESPONSE" >> /tmp/responses.log
 
 echo "$MESSAGE" >> "$HISTORY_FILE"
