@@ -47,8 +47,13 @@ tts() {
     
     local audio_url=$(echo "$response" | jq -r '.output')
     if [ -n "$audio_url" ] && [ "$audio_url" != "null" ]; then
-        curl -s "$audio_url" -o /tmp/tts-output.mp3
+        TIMESTAMP=$(date +"%Y-%m-%d_%H-%M-%S")
+        FILENAME="tts-output-$TIMESTAMP.mp3"
+        curl -s "$audio_url" -o /tmp/$FILENAME
         afplay /tmp/tts-output.mp3
+        # limit temp mp3s to 10 files
+        FILES=$(ls -tr /tmp/tts-output-*.mp3 | tail -n +11)
+        rm $FILES
     fi
 }
 
