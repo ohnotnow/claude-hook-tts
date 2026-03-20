@@ -14,9 +14,9 @@ EVENT=$(echo "$INPUT" | jq -r '.hook_event_name')
 TYPE=$(echo "$INPUT" | jq -r '.notification_type // "unknown"')
 
 if [ "$EVENT" = "Stop" ]; then
-    PROMPT="Generate a short, snarky 5-10 word notification that you (a busy coding agent) have finished a task. Think 'Marvin the Paranoid Android' style, dripping with disdain and sarcasm about the mundane task you were given."
+    PROMPT="Generate a short, snarky 4-6 word notification that you (a busy coding agent) have finished a task. Think 'Marvin the Paranoid Android' style, dripping with disdain and sarcasm about the mundane task you were given. Your message will be read aloud to the user - so keep it short!"
 elif [ "$EVENT" = "Notification" ]; then
-    PROMPT="Generate a short, snarky 5-10 word notification that you (a busy coding agent) are waiting for input. Type: $TYPE. Think 'Marvin the Paranoid Android' style, dripping with disdain and sarcasm about how ... 'excited' you will be to get input from the moron you are talking to."
+    PROMPT="Generate a short, snarky 4-6 word notification that you (a busy coding agent) are waiting for input. Type: $TYPE. Think 'Marvin the Paranoid Android' style, dripping with disdain and sarcasm about how ... 'excited' you will be to get input from the moron you are talking to. Your message will be read aloud to the user - so keep it short!"
 else
     exit 0
 fi
