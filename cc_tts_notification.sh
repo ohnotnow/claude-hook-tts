@@ -96,6 +96,28 @@ generate_message_openai() {
         -d "$json_payload"
 }
 
+generate_message_mistral() {
+    local prompt="$1"
+    local model="$2"
+
+    require_env "MISTRAL_API_KEY"
+
+    local json_payload
+    json_payload=$(jq -n \
+        --arg content "$prompt" \
+        --arg model "$model" \
+        '{
+            "model": $model,
+            "messages": [{"role": "user", "content": $content}],
+            "max_tokens": 50
+        }')
+
+    curl -s https://api.mistral.ai/v1/chat/completions \
+        -H "Authorization: Bearer $MISTRAL_API_KEY" \
+        -H "Content-Type: application/json" \
+        -d "$json_payload"
+}
+
 generate_message_openrouter() {
     local prompt="$1"
     local model="$2"
@@ -159,6 +181,10 @@ case "$LLM_PROVIDER" in
         ;;
     openai)
         RESPONSE=$(generate_message_openai "$FULL_PROMPT" "$LLM_NAME")
+        MESSAGE=$(extract_chat_completion_text "$RESPONSE")
+        ;;
+    mistral)
+        RESPONSE=$(generate_message_mistral "$FULL_PROMPT" "$LLM_NAME")
         MESSAGE=$(extract_chat_completion_text "$RESPONSE")
         ;;
     openrouter)
