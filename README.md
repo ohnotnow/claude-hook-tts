@@ -97,7 +97,16 @@ The `.env` file is git-ignored, so your keys won't end up in version control.
 
 ### TTS settings
 
-The script uses [minimax/speech-02-turbo](https://replicate.com/minimax/speech-02-turbo) on Replicate for text-to-speech, configured with "sad" emotion and a slight Danish accent. Don't ask. It just works for the vibe.
+Set `TTS_PROVIDER` in your `.env` to choose your text-to-speech backend:
+
+| Provider | `TTS_PROVIDER` value | API key needed |
+|----------|---------------------|----------------|
+| Replicate (default) | `replicate` | `REPLICATE_API_TOKEN` |
+| Mistral | `mistral` | `MISTRAL_API_KEY` |
+
+**Replicate** uses [minimax/speech-02-turbo](https://replicate.com/minimax/speech-02-turbo), configured with "sad" emotion and a slight Danish accent. Don't ask. It just works for the vibe.
+
+**Mistral** uses [voxtral-mini-tts-2603](https://docs.mistral.ai/capabilities/voice/) with the `fr_marie_sad` voice -- a French woman who sounds like she's carrying the weight of the world. A good fit for Marvin. If you're already using Mistral for the LLM side, this means one fewer API key to manage.
 
 ### History file
 

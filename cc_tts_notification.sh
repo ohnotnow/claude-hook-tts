@@ -8,6 +8,7 @@ if [ -f "$ENV_FILE" ]; then
 fi
 
 LLM_MODEL="${LLM_MODEL:-anthropic/claude-haiku-4-5-20251001}"
+TTS_PROVIDER="${TTS_PROVIDER:-replicate}"
 
 INPUT=$(cat)
 EVENT=$(echo "$INPUT" | jq -r '.hook_event_name')
@@ -140,8 +141,10 @@ generate_message_openrouter() {
         -d "$json_payload"
 }
 
-tts() {
+tts_replicate() {
     local text="$1"
+    require_env "REPLICATE_API_TOKEN"
+
     local response=$(curl --silent --show-error https://api.replicate.com/v1/models/minimax/speech-02-turbo/predictions \
         --request POST \
         --header "Authorization: Bearer $REPLICATE_API_TOKEN" \
@@ -158,15 +161,45 @@ tts() {
 
     local audio_url=$(echo "$response" | jq -r '.output')
     if [ -n "$audio_url" ] && [ "$audio_url" != "null" ]; then
-        TIMESTAMP=$(date +"%Y-%m-%d_%H-%M-%S")
-        FILENAME="tts-output-$TIMESTAMP.mp3"
-        curl -s "$audio_url" -o "/tmp/$FILENAME"
-        afplay "/tmp/$FILENAME"
-        # limit temp mp3s to 10 files
-        mapfile -t OLD_FILES < <(ls -tr /tmp/tts-output-*.mp3 2>/dev/null | tail -n +11)
-        if [ "${#OLD_FILES[@]}" -gt 0 ]; then
-            rm "${OLD_FILES[@]}"
-        fi
+        local filepath=$(tts_temp_file)
+        curl -s "$audio_url" -o "$filepath"
+        afplay "$filepath"
+        tts_cleanup
+    fi
+}
+
+tts_mistral() {
+    local text="$1"
+    require_env "MISTRAL_API_KEY"
+
+    local response=$(curl --silent --show-error https://api.mistral.ai/v1/audio/speech \
+        --request POST \
+        --header "Authorization: Bearer $MISTRAL_API_KEY" \
+        --header "Content-Type: application/json" \
+        --data "$(jq -n --arg t "$text" '{
+            "input": $t,
+            "model": "voxtral-mini-tts-2603",
+            "response_format": "mp3",
+            "voice_id": "fr_marie_sad"
+        }')")
+
+    local audio_data=$(echo "$response" | jq -r '.audio_data')
+    if [ -n "$audio_data" ] && [ "$audio_data" != "null" ]; then
+        local filepath=$(tts_temp_file)
+        echo "$audio_data" | base64 -d > "$filepath"
+        afplay "$filepath"
+        tts_cleanup
+    fi
+}
+
+tts_temp_file() {
+    echo "/tmp/tts-output-$(date +"%Y-%m-%d_%H-%M-%S").mp3"
+}
+
+tts_cleanup() {
+    mapfile -t OLD_FILES < <(ls -tr /tmp/tts-output-*.mp3 2>/dev/null | tail -n +11)
+    if [ "${#OLD_FILES[@]}" -gt 0 ]; then
+        rm "${OLD_FILES[@]}"
     fi
 }
 
@@ -202,5 +235,11 @@ echo "$RESPONSE" >> /tmp/responses.log
 echo "$MESSAGE" >> "$HISTORY_FILE"
 tail -n 10 "$HISTORY_FILE" > "$HISTORY_FILE.tmp" && mv "$HISTORY_FILE.tmp" "$HISTORY_FILE"
 
-# Use TTS instead of say
-tts "$MESSAGE" &
+case "$TTS_PROVIDER" in
+    mistral)
+        tts_mistral "$MESSAGE" &
+        ;;
+    *)
+        tts_replicate "$MESSAGE" &
+        ;;
+esac
